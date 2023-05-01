@@ -5,6 +5,7 @@ import pandas as pd
 import subprocess
 import csv
 import sys
+import json
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import mysql.connector
@@ -13,12 +14,16 @@ import mysql.connector
 # Your original code (up to the point where you read the CSV file)
 sys.stdin.reconfigure(encoding='utf-8')
 
+# Load configuration from the JSON file
+with open('config.json') as f:
+    config = json.load(f)
+
 # Connect to the MySQL database
 mydb = mysql.connector.connect(
-    host="",
-    user="",
-    password="",
-    database=""
+    host=config["host"],
+    user=config["user"],
+    password=config["password"],
+    database=config["database"]
 )
 mycursor = mydb.cursor()
 
@@ -33,10 +38,11 @@ mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
 open('contacts.csv', 'w').close()
 
 # Connect to the Android device
-ADB_HOST = '192.168.0.12'
-ADB_PORT = 5555
+ADB_HOST = '192.168.0.12' #your phone adb host
+ADB_PORT = 5555 #Network port
 with open('/Users/randeath/documents/python/adbkey') as f:
     priv = f.read()
+
 signer = PythonRSASigner('', priv)
 device = AdbDeviceTcp(ADB_HOST, ADB_PORT)
 device.connect(rsa_keys=[signer])
