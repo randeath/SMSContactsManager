@@ -1,12 +1,31 @@
-from pymongo import MongoClient
-client = MongoClient('localhost', 27017)  # mongoDB는 27017 포트로 돌아갑니다.
-db = client.sms  # 'dbsparta'라는 이름의 db를 사용합니다. 'dbsparta' db가 없다면 새로 만듭니다.
+import mysql.connector
+import json
 
-# MongoDB에서 데이터 모두 보기
-all_users = list(db.collection.find({}))
+# Load the configuration from the config.json file
+with open('config.json') as f:
+    config = json.load(f)
 
-print(all_users[0])  # 0번째 결과값을 보기
-print(all_users[0]['phone_number'])  # 0번째 결과값의 'name'을 보기
+# Connect to the MySQL database using the credentials from the config.json file
+mydb = mysql.connector.connect(
+    host=config["host"],
+    user=config["user"],
+    password=config["password"],
+    database=config["database"]
+)
 
-# delete_data = {'phone_number': '01030125625'}
-# db.collection.delete_one(delete_data)
+# Create a cursor
+mycursor = mydb.cursor()
+
+# Execute a SELECT query
+mycursor.execute("SELECT * FROM messages")
+
+# Fetch all rows from the result
+result = mycursor.fetchall()
+
+# Display the result
+for row in result:
+    print(row)
+
+# Close the cursor and connection
+mycursor.close()
+mydb.close()

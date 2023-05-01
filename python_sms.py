@@ -34,6 +34,7 @@ mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
                         message TEXT
                     )""")
 
+
 # Clear the contents of the CSV file
 open('contacts.csv', 'w').close()
 
@@ -104,9 +105,16 @@ def send_sms():
     # Get the message from the entry box
     message = entry_message.get()
 
-    # Insert the data into the MySQL database
+    # Create the table if it doesn't exist
     cursor = mydb.cursor()
-    query = "INSERT INTO sent_messages (phone_number, message) VALUES (%s, %s)"
+    cursor.execute("""CREATE TABLE IF NOT EXISTS messages (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    phone_number VARCHAR(255),
+                    message TEXT
+                )""")
+
+    # Insert the data into the MySQL database
+    query = "INSERT INTO messages (phone_number, message) VALUES (%s, %s)"
     cursor.execute(query, (phone_number, message))
     mydb.commit()
 
@@ -116,6 +124,7 @@ def send_sms():
     # You can now use the selected phone number and message for further processing.
     print("Selected phone number:", phone_number)
     print("Message to be sent:", message)
+
 
 # tk img_section
 # Create and populate the listbox with contact names
