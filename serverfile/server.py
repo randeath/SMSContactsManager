@@ -1,41 +1,54 @@
 from flask import Flask, request, jsonify
-import mariadb
+import mysql.connector
 import json
 
 app = Flask(__name__)
 
-# Load configuration from the JSON file
 with open('config.json') as f:
     config = json.load(f)
 
-# Connect to the MariaDB database
-def get_connection():
-    return mariadb.connect(**config)
+mydb = mysql.connector.connect(
+    host=config["host"],
+    user=config["user"],
+    password=config["password"],
+    database=config["database"]
+)
+mycursor = mydb.cursor()
+mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    phone_number VARCHAR(255),
+                    message TEXT
+                )""")
 
-# API endpoint to delete data from the database
-@app.route('/delete_data', methods=['POST'])
-def delete_data():
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
 
-        # Get the 'id' parameter from the request
-        message_id = request.form.get('id')
+@app.route('/send_sms', methods=['POST'])
+def send_sms():
+    phone_number = request.json['phone_number']
+    message = request.json['message']
 
-        # Delete the data with the given 'id' from the database
-        cursor.execute("DELETE FROM messages WHERE id = ?", (message_id,))
-        conn.commit()
+    query = "INSERT INTO messages (phone_number, message) VALUES (%s, %s)"
+    mycursor.execute(query, (phone_number, message))
+    mydb.commit()
 
-        # Close the database connection
-        conn.close()
+    return jsonify({"status": "success", "message": f"Message is ready to be sent to {phone_number}"})
 
-        # Return a JSON response indicating success
-        return jsonify({'status': 'success'})
 
-    except mariadb.Error as e:
-        print(f"Error deleting data: {e}")
-        return jsonify({'status': 'error'})
+@app.route('/get_messages', methods=['GET'])
+def get_messages():
+    mycursor.execute("SELECT * FROM messages")
+    result = mycursor.fetchall()
+    messages = []
 
-# Start the Flask server
+    for row in result:
+        message_data = {
+            "id": row[0],
+            "phone_number": row[1],
+            "message": row[2]
+        }
+        messages.append(message_data)
+
+    return jsonify({"status": "success", "messages": messages})
+
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True)
