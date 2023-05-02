@@ -159,4 +159,6 @@ config.json
 
 #ext is file
 myenv/
+.DS_Store
+.gitattributes
 
