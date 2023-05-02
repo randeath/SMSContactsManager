@@ -179,7 +179,7 @@ intro_listbox = "원하는 사람을 누르고 선택을 눌러주세요"
 intro_label = tk.Label(root, text=intro_listbox)
 intro_label.pack(pady=10)
 
-listbox_contacts = tk.Listbox(root,width=50, height=10)
+listbox_contacts = tk.Listbox(root,width=30, height=10)
 for index, row in contacts_df.iterrows():
     listbox_contacts.insert(index, f"{row['display_name']} ({row['number']})")
 listbox_contacts.pack(pady=1)
@@ -193,7 +193,7 @@ intro_label2 = tk.Label(root, text=intro_listbox, justify='center')
 intro_label2.pack(pady=10)
 
 # Create an entry box for the display_name input
-entry_display_name = tk.Entry(root, width=50)
+entry_display_name = tk.Entry(root, width=30)
 entry_display_name.pack(pady=10)
 
 # Create a button to proceed with the entered contact name or phone number
@@ -201,7 +201,7 @@ button_proceed = tk.Button(root, text="찾기", command=process_contact)
 button_proceed.pack(pady=10)
 
 # Create an entry box for the phone number input (optional)
-entry_phone_number = tk.Entry(root,width=50)
+entry_phone_number = tk.Entry(root,width=30)
 entry_phone_number.pack(pady=10)
 
 intro_listbox3 = "번호"
@@ -211,12 +211,12 @@ intro_label3.pack(pady=10)
 
 
 # Create a listbox for frequently used phrases
-listbox_phrases = tk.Listbox(root, width=50)
+listbox_phrases = tk.Listbox(root, width=30)
 for index, phrase in enumerate(frequently_used_phrases):
     listbox_phrases.insert(index, phrase)
 listbox_phrases.pack(pady=10)
 
-freq_message = tk.Entry(root, width=50)
+freq_message = tk.Entry(root, width=30)
 freq_message.pack(pady=10)
 
 # Create a button to add a new phrase
@@ -232,7 +232,7 @@ button_insert = tk.Button(root, text="insert", command=lambda: insert_selected_p
 button_insert.pack(pady=10)
 
 # Create an entry box for the message
-entry_message = tk.Entry(root, width=50, textvariable= message_var)
+entry_message = tk.Entry(root, width=30, textvariable= message_var)
 entry_message.pack(pady=10)
 
 # Create a button to send the SMS
