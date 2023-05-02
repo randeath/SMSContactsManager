@@ -43,7 +43,8 @@ def get_messages():
         message_data = {
             "id": row[0],
             "phone_number": row[1],
-            "message": row[2]
+            "message": row[2],
+            "user": row[3]
         }
         messages.append(message_data)
 

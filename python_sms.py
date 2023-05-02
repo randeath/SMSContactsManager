@@ -1,8 +1,9 @@
-import os
+import subprocess
 from adb_shell.adb_device import AdbDeviceTcp
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 import pandas as pd
-import subprocess
+from phrase_utils import load_phrases_from_csv, insert_selected_phrase, remove_selected_phrase, add_new_phrase
+
 import csv
 import sys
 import json
@@ -27,26 +28,58 @@ mydb = mysql.connector.connect(
 )
 mycursor = mydb.cursor()
 
-# Create a table for storing phone numbers and messages, if it doesn't exist
+# Create a table for storing phone numbers, messages, and users, if it doesn't exist
 mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         phone_number VARCHAR(255),
-                        message TEXT
+                        message TEXT,
+                        user VARCHAR(255)
                     )""")
 
 
-# Clear the contents of the CSV file
-open('contacts.csv', 'w').close()
-
-# Connect to the Android device
-ADB_HOST = '192.168.0.12' #your phone adb host
-ADB_PORT = 5555 #Network port
+# Read the private key
 with open('/Users/randeath/documents/python/adbkey') as f:
     priv = f.read()
 
+# Create a PythonRSASigner instance with the private key
 signer = PythonRSASigner('', priv)
-device = AdbDeviceTcp(ADB_HOST, ADB_PORT)
-device.connect(rsa_keys=[signer])
+
+# Connect to the Android device
+connected = False
+ADB_HOST = '192.168.0.12'  # your phone adb host
+ADB_PORT = 5555  # Network port
+
+# Clear the contents of the CSV file
+def clear_csv(): 
+    open('contacts.csv', 'w').close()
+
+# Try connecting via Wi-Fi
+try:
+    device = AdbDeviceTcp(ADB_HOST, ADB_PORT)
+    device.connect(rsa_keys=[signer])
+    print("Connected via Wi-Fi")
+    connected = True
+    clear_csv()
+except Exception as e:
+    print(f"Wi-Fi connection failed: {e}")
+    print("Trying USB connection...")
+
+# Try connecting via USB if Wi-Fi connection failed
+if not connected:
+    def run_adb_shell_command(command):
+        cmd = ['adb', 'shell'] + command
+        output = subprocess.check_output(cmd)
+        return output.decode('utf-8')
+    # Check if the device is connected via USB
+    adb_devices_output = subprocess.check_output(['adb', 'devices']).decode('utf-8')
+    if 'unauthorized' in adb_devices_output:
+        print("Please check the connected device and authorize this computer.")
+        clear_csv()
+        exit(1)
+    elif 'device' not in adb_devices_output:
+        print("No device connected. Please connect your Android device via USB.")
+        exit(1)
+
 
 # Run the adb shell command and get the output
 cmd = ['adb', 'shell', 'content', 'query', '--uri', 'content://contacts/phones', '--projection', 'display_name:number']
@@ -80,6 +113,7 @@ contacts_df = pd.read_csv('contacts.csv')
 root = tk.Tk()
 root.title("Contact Messaging")
 
+# def section
 def add_selected_contact():
     selected_index = listbox_contacts.curselection()[0]
     selected_contact = contacts_df.iloc[selected_index]
@@ -107,15 +141,21 @@ def send_sms():
 
     # Create the table if it doesn't exist
     cursor = mydb.cursor()
-    cursor.execute("""CREATE TABLE IF NOT EXISTS messages (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    phone_number VARCHAR(255),
-                    message TEXT
-                )""")
+    # Create a table for storing phone numbers, messages, and users, if it doesn't exist
+    mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        phone_number VARCHAR(255),
+                        message TEXT,
+                        user VARCHAR(255)
+                    )""")
+
+
+    # Get the user from the JSON file
+    user = config["user"]
 
     # Insert the data into the MySQL database
-    query = "INSERT INTO messages (phone_number, message) VALUES (%s, %s)"
-    cursor.execute(query, (phone_number, message))
+    query = "INSERT INTO messages (phone_number, message, user) VALUES (%s, %s, %s)"
+    cursor.execute(query, (phone_number, message, user))
     mydb.commit()
 
     # Show a confirmation message
@@ -126,13 +166,20 @@ def send_sms():
     print("Message to be sent:", message)
 
 
+
 # tk img_section
 # Create and populate the listbox with contact names
+
+# Load frequently used phrases from CSV
+frequently_used_phrases = load_phrases_from_csv('frequently_used_phrases.csv')
+message_var = tk.StringVar()
+
+
 intro_listbox = "원하는 사람을 누르고 선택을 눌러주세요"
 intro_label = tk.Label(root, text=intro_listbox)
 intro_label.pack(pady=10)
 
-listbox_contacts = tk.Listbox(root,width=50, height=20)
+listbox_contacts = tk.Listbox(root,width=50, height=10)
 for index, row in contacts_df.iterrows():
     listbox_contacts.insert(index, f"{row['display_name']} ({row['number']})")
 listbox_contacts.pack(pady=1)
@@ -161,8 +208,31 @@ intro_listbox3 = "번호"
 intro_label3 = tk.Label(root, text=intro_listbox)
 intro_label3.pack(pady=10)
 
+
+
+# Create a listbox for frequently used phrases
+listbox_phrases = tk.Listbox(root, width=50)
+for index, phrase in enumerate(frequently_used_phrases):
+    listbox_phrases.insert(index, phrase)
+listbox_phrases.pack(pady=10)
+
+freq_message = tk.Entry(root, width=50)
+freq_message.pack(pady=10)
+
+# Create a button to add a new phrase
+button_add_phrase = tk.Button(root, text="Add new phrase", command=lambda: add_new_phrase(freq_message, listbox_phrases, frequently_used_phrases, 'frequently_used_phrases.csv'))
+button_add_phrase.pack(pady=10)
+
+# Create a button to remove the selected phrase
+button_remove_phrase = tk.Button(root, text="Remove selected phrase", command=lambda: remove_selected_phrase(listbox_phrases, frequently_used_phrases, 'frequently_used_phrases.csv'))
+button_remove_phrase.pack(pady=10)
+
+# Create a button to insert the selected phrase
+button_insert = tk.Button(root, text="insert", command=lambda: insert_selected_phrase(message_var, listbox_phrases))
+button_insert.pack(pady=10)
+
 # Create an entry box for the message
-entry_message = tk.Entry(root, width=50)
+entry_message = tk.Entry(root, width=50, textvariable= message_var)
 entry_message.pack(pady=10)
 
 # Create a button to send the SMS
