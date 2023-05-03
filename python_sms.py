@@ -209,7 +209,6 @@ intro_label3 = tk.Label(root, text=intro_listbox)
 intro_label3.pack(pady=10)
 
 
-
 # Create a listbox for frequently used phrases
 listbox_phrases = tk.Listbox(root, width=30)
 for index, phrase in enumerate(frequently_used_phrases):
