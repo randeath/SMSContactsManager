@@ -1,9 +1,10 @@
 import subprocess
 from adb_shell.adb_device import AdbDeviceTcp
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+from serverfile.api_server import start_server
 import pandas as pd
 from phrase_utils import load_phrases_from_csv, insert_selected_phrase, remove_selected_phrase, add_new_phrase
-
+import time
 import csv
 import sys
 import json
@@ -19,6 +20,16 @@ sys.stdin.reconfigure(encoding='utf-8')
 with open('config.json') as f:
     config = json.load(f)
 
+# Get the user from the user input
+user = input("Enter your MySQL username: ")
+
+# Update the config dictionary with the new user value
+config['user'] = user
+
+# Save the updated config dictionary to the config.json file
+with open('config.json', 'w') as f:
+    json.dump(config, f)
+
 # Connect to the MySQL database
 mydb = mysql.connector.connect(
     host=config["host"],
@@ -27,7 +38,6 @@ mydb = mysql.connector.connect(
     database=config["database"]
 )
 mycursor = mydb.cursor()
-
 # Create a table for storing phone numbers, messages, and users, if it doesn't exist
 mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
                         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -114,6 +124,17 @@ root = tk.Tk()
 root.title("Contact Messaging")
 
 # def section
+def restart_another_script(script_path, server):
+    # Close the running Flask server
+    server.close()
+
+    # Wait for a short duration
+    time.sleep(1)
+
+    # Restart the script
+    python_executable = sys.executable
+    subprocess.Popen([python_executable, script_path])
+
 def add_selected_contact():
     selected_index = listbox_contacts.curselection()[0]
     selected_contact = contacts_df.iloc[selected_index]
@@ -164,6 +185,24 @@ def send_sms():
     # You can now use the selected phone number and message for further processing.
     print("Selected phone number:", phone_number)
     print("Message to be sent:", message)
+    
+    # Start the server and get the server instance
+    server_instance = start_server()
+    
+    # Restart the other Python script after sending the SMS
+    other_script_path = "serverfile/api_server.py"
+    restart_another_script(other_script_path, server_instance)
+
+def update_button_send_state(*_):
+    phone_number = entry_phone_number.get()
+    message = entry_message.get()
+
+    if phone_number and message:
+        button_send.config(state=tk.NORMAL)
+    else:
+        button_send.config(state=tk.DISABLED)
+
+
 
 
 
@@ -201,7 +240,9 @@ button_proceed = tk.Button(root, text="찾기", command=process_contact)
 button_proceed.pack(pady=10)
 
 # Create an entry box for the phone number input (optional)
-entry_phone_number = tk.Entry(root,width=30)
+phone_number_var = tk.StringVar()
+phone_number_var.trace_add("write", update_button_send_state)
+entry_phone_number = tk.Entry(root, width=30, textvariable=phone_number_var)
 entry_phone_number.pack(pady=10)
 
 intro_listbox3 = "번호"
@@ -231,11 +272,12 @@ button_insert = tk.Button(root, text="insert", command=lambda: insert_selected_p
 button_insert.pack(pady=10)
 
 # Create an entry box for the message
-entry_message = tk.Entry(root, width=30, textvariable= message_var)
+message_var.trace_add("write", update_button_send_state)
+entry_message = tk.Entry(root, width=30, textvariable=message_var)
 entry_message.pack(pady=10)
 
 # Create a button to send the SMS
-button_send = tk.Button(root, text="Send SMS", command=send_sms)
+button_send = tk.Button(root, text="Send SMS", command=send_sms, state=tk.DISABLED)
 button_send.pack(pady=10)
 
 # Start the Tkinter main loop

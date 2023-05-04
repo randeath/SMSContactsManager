@@ -1,21 +1,24 @@
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO
 import config
 import db
+from gevent.pywsgi import WSGIServer
+import socket
+
+
+class ReusableWSGIServer(WSGIServer):
+    def init_socket(self):
+        super().init_socket()
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
 
 app = Flask(__name__)
-socketio = SocketIO(app)
 
 config_data = config.load_config()
 mydb = db.connect_to_db(config_data)
 mycursor = mydb.cursor()
 
 db.create_messages_table(mycursor)
-app_user = config.get_app_user(config_data)  # Remove the mycursor parameter
-
-# ... Rest of the code with routes and functions
-def notify_db_change():
-    socketio.emit('db_change', {"message": "Database has been updated"})
+app_user = config.get_app_user(config_data)
 
 @app.route('/send_sms', methods=['POST'])
 def send_sms():
@@ -23,17 +26,16 @@ def send_sms():
     message = request.json['message']
 
     query = "INSERT INTO messages (phone_number, message, user) VALUES (%s, %s, %s)"
-    mycursor.execute(query, (phone_number, message, config['app_user']))
+    mycursor.execute(query, (phone_number, message, app_user))
     mydb.commit()
-
-    notify_db_change()
 
     return jsonify({"status": "success", "message": f"Message is ready to be sent to {phone_number}"})
 
 
 @app.route('/get_messages', methods=['GET'])
 def get_messages():
-    mycursor.execute("SELECT * FROM messages")
+    query = "SELECT * FROM messages WHERE user = %s"
+    mycursor.execute(query, (app_user,))
     result = mycursor.fetchall()
     messages = []
 
@@ -48,19 +50,14 @@ def get_messages():
 
     return jsonify({"status": "success", "messages": messages})
 
-
-@app.route('/delete_message', methods=['POST'])
-def delete_message():
-    message_id = request.json['message_id']
-
-    query = "DELETE FROM messages WHERE id = %s"
-    mycursor.execute(query, (message_id,))
-    mydb.commit()
-
-    notify_db_change()
-
-    return jsonify({"status": "success", "message": f"Message with id {message_id} has been deleted"})
+def start_server():
+    server = app.run(debug=True, host='0.0.0.0', port=8000)
+    return server
 
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=8000)
+    host = '0.0.0.0'
+    port = 8000
+
+    server = ReusableWSGIServer((host, port), app)
+    server.serve_forever()
