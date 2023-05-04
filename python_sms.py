@@ -1,7 +1,6 @@
 import subprocess
 from adb_shell.adb_device import AdbDeviceTcp
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
-from serverfile.api_server import start_server
 import pandas as pd
 from phrase_utils import load_phrases_from_csv, insert_selected_phrase, remove_selected_phrase, add_new_phrase
 import time
@@ -11,6 +10,8 @@ import json
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import mysql.connector
+import os
+import requests
 
 
 # Your original code (up to the point where you read the CSV file)
@@ -133,7 +134,8 @@ def restart_another_script(script_path, server):
 
     # Restart the script
     python_executable = sys.executable
-    subprocess.Popen([python_executable, script_path])
+     # Restart the script
+    subprocess.Popen([sys.executable, os.path.join(os.getcwd(), script_path)])
 
 def add_selected_contact():
     selected_index = listbox_contacts.curselection()[0]
@@ -153,13 +155,10 @@ def process_contact():
         entry_phone_number.delete(0, tk.END)  # Clear the existing content
         entry_phone_number.insert(0, phone_number)  # Insert the phone number into the entry box
 
-def send_sms():
-    # Get the phone number from the entry box
+def send_sms_and_restart_server():
     phone_number = entry_phone_number.get()
-
-    # Get the message from the entry box
     message = entry_message.get()
-
+    
     # Create the table if it doesn't exist
     cursor = mydb.cursor()
     # Create a table for storing phone numbers, messages, and users, if it doesn't exist
@@ -169,8 +168,7 @@ def send_sms():
                         message TEXT,
                         user VARCHAR(255)
                     )""")
-
-
+    
     # Get the user from the JSON file
     user = config["user"]
 
@@ -179,19 +177,13 @@ def send_sms():
     cursor.execute(query, (phone_number, message, user))
     mydb.commit()
 
-    # Show a confirmation message
-    messagebox.showinfo("SMS Ready", f"Message is ready to be sent to {phone_number}")
+    if response.status_code == 200:
+        messagebox.showinfo("SMS Ready", f"Message is ready to be sent to {phone_number}")
+        other_script_path = "serverfile/api_server.py"
+        restart_another_script(other_script_path, server_instance)
+    else:
+        messagebox.showerror("Error", f"Failed to send message: {response.text}")
 
-    # You can now use the selected phone number and message for further processing.
-    print("Selected phone number:", phone_number)
-    print("Message to be sent:", message)
-    
-    # Start the server and get the server instance
-    server_instance = start_server()
-    
-    # Restart the other Python script after sending the SMS
-    other_script_path = "serverfile/api_server.py"
-    restart_another_script(other_script_path, server_instance)
 
 def update_button_send_state(*_):
     phone_number = entry_phone_number.get()
@@ -277,7 +269,7 @@ entry_message = tk.Entry(root, width=30, textvariable=message_var)
 entry_message.pack(pady=10)
 
 # Create a button to send the SMS
-button_send = tk.Button(root, text="Send SMS", command=send_sms, state=tk.DISABLED)
+button_send = tk.Button(root, text="Send SMS", command=send_sms_and_restart_server, width=20, height=2, state=tk.DISABLED)
 button_send.pack(pady=10)
 
 # Start the Tkinter main loop

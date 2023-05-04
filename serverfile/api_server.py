@@ -1,32 +1,46 @@
 from flask import Flask, request, jsonify
-import config
-import db
-from gevent.pywsgi import WSGIServer
-import socket
-
-
-class ReusableWSGIServer(WSGIServer):
-    def init_socket(self):
-        super().init_socket()
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
+import mysql.connector
+import json
+import os
 
 app = Flask(__name__)
 
-config_data = config.load_config()
-mydb = db.connect_to_db(config_data)
-mycursor = mydb.cursor()
+with open('config.json') as f:
+    config = json.load(f)
 
-db.create_messages_table(mycursor)
-app_user = config.get_app_user(config_data)
+# Check if 'recent_app_user' exists in the config file, otherwise prompt for user input
+if 'recent_app_user' in config:
+    user_id = config['recent_app_user']
+else:
+    user_id = input("Please enter an ID: ")
+    config["recent_app_user"] = user_id
+    # Save the updated config dictionary to the config.json file
+    with open('config.json', 'w') as f:
+        json.dump(config, f)
+
+config["user_id"] = user_id
+
+mydb = mysql.connector.connect(
+    host=config["host"],
+    user=config["user"],
+    password=config["password"],
+    database=config["database"]
+)
+mycursor = mydb.cursor()
+mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    phone_number VARCHAR(255),
+                    message TEXT,
+                    user_id VARCHAR(255)
+                )""")
 
 @app.route('/send_sms', methods=['POST'])
 def send_sms():
     phone_number = request.json['phone_number']
     message = request.json['message']
 
-    query = "INSERT INTO messages (phone_number, message, user) VALUES (%s, %s, %s)"
-    mycursor.execute(query, (phone_number, message, app_user))
+    query = "INSERT INTO messages (phone_number, message, user_id) VALUES (%s, %s, %s)"
+    mycursor.execute(query, (phone_number, message, config['user_id']))
     mydb.commit()
 
     return jsonify({"status": "success", "message": f"Message is ready to be sent to {phone_number}"})
@@ -34,8 +48,7 @@ def send_sms():
 
 @app.route('/get_messages', methods=['GET'])
 def get_messages():
-    query = "SELECT * FROM messages WHERE user = %s"
-    mycursor.execute(query, (app_user,))
+    mycursor.execute("SELECT * FROM messages")
     result = mycursor.fetchall()
     messages = []
 
@@ -51,13 +64,11 @@ def get_messages():
     return jsonify({"status": "success", "messages": messages})
 
 def start_server():
-    server = app.run(debug=True, host='0.0.0.0', port=8000)
-    return server
-
+    server_instance = app.run(debug=True, host='0.0.0.0', port=8000)
+    return server_instance
 
 if __name__ == '__main__':
-    host = '0.0.0.0'
-    port = 8000
-
-    server = ReusableWSGIServer((host, port), app)
-    server.serve_forever()
+    while True:
+        if os.environ.get("RESTART_FLASK_SERVER") == "1":
+            os.environ["RESTART_FLASK_SERVER"] = "0"
+        app.run(debug=True, host='0.0.0.0', port=8000)

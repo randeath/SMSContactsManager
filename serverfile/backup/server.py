@@ -24,8 +24,6 @@ mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
                     user_id VARCHAR(255)
                 )""")
 
-
-
 @app.route('/send_sms', methods=['POST'])
 @app.route('/send_sms', methods=['POST'])
 def send_sms():
@@ -36,9 +34,8 @@ def send_sms():
     mycursor.execute(query, (phone_number, message, config['user_id']))
     mydb.commit()
 
-    notify_db_change()
-
     return jsonify({"status": "success", "message": f"Message is ready to be sent to {phone_number}"})
+
 
 
 @app.route('/get_messages', methods=['GET'])
@@ -60,4 +57,4 @@ def get_messages():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=8000)
