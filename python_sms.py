@@ -12,6 +12,7 @@ from tkinter import filedialog, messagebox
 import mysql.connector
 import os
 import requests
+from serverfile.api_server import start_server
 
 
 # Your original code (up to the point where you read the CSV file)
@@ -181,16 +182,17 @@ def send_sms_and_restart_server():
         messagebox.showinfo("SMS Ready", f"Message is ready to be sent to {phone_number}")
         other_script_path = "serverfile/api_server.py"
         restart_another_script(other_script_path, server_instance)
-    else:
-        messagebox.showerror("Error", f"Failed to send message: {response.text}")
+
 
 
 def update_button_send_state(*_):
     phone_number = entry_phone_number.get()
     message = entry_message.get()
+    
 
     if phone_number and message:
         button_send.config(state=tk.NORMAL)
+        start_server()
     else:
         button_send.config(state=tk.DISABLED)
 

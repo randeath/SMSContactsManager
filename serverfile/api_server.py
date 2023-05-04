@@ -67,6 +67,7 @@ def start_server():
     server_instance = app.run(debug=True, host='0.0.0.0', port=8000)
     return server_instance
 
+
 if __name__ == '__main__':
     while True:
         if os.environ.get("RESTART_FLASK_SERVER") == "1":
