@@ -12,7 +12,7 @@ from tkinter import filedialog, messagebox
 import mysql.connector
 import os
 import subprocess 
-import psutil
+from terminate_port import terminate_process_on_port
 
 # Your original code (up to the point where you read the CSV file)
 sys.stdin.reconfigure(encoding='utf-8')
@@ -120,11 +120,11 @@ with open('contacts.csv', 'w', newline='') as f:
 # Read the CSV file and display the contacts
 contacts_df = pd.read_csv('contacts.csv')
 
-# Create a Tkinter window for the GUI
-root = tk.Tk()
-root.title("Contact Messaging")
+
 
 # def section
+
+
 
 def run_script_in_background(script_path):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -141,16 +141,7 @@ def run_script_in_background(script_path):
 
     else:
         print("Unsupported operating system. Please run the script manually.")
-def terminate_process_on_port(port):
-    for proc in psutil.process_iter(['pid', 'name']):
-        try:
-            for conn in proc.connections():
-                if conn.laddr.port == port:
-                    print(f"Terminating process {proc.info['name']} (PID: {proc.info['pid']}) on port {port}")
-                    proc.terminate()
-                    break
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
+
 
 
 def add_selected_contact():
@@ -207,6 +198,16 @@ def update_button_send_state(*_):
     else:
         button_send.config(state=tk.DISABLED)
 
+
+def on_close():
+    # This function will be called when the Tkinter window is closed.
+    # Add code here to run another Python script, e.g.:
+    subprocess.run(["python", "terminate_port.py"])
+    root.destroy()
+
+# Create a Tkinter window for the GUI
+root = tk.Tk()
+root.title("Contact Messaging")
 
 # tk img_section
 # Create and populate the listbox with contact names
@@ -282,6 +283,9 @@ entry_message.pack(pady=5)
 button_send = tk.Button(root, text="Send SMS", command=send_sms_and_restart_server, width=20, height=2, state=tk.DISABLED)
 button_send.pack(pady=5)
 
+
+
+root.protocol("WM_DELETE_WINDOW", on_close)
 # Start the Tkinter main loop
 root.mainloop()
 
