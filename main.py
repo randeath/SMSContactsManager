@@ -11,9 +11,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import mysql.connector
 import os
-import requests
-from serverfile.api_server import start_server
-
+import subprocess 
+import psutil
 
 # Your original code (up to the point where you read the CSV file)
 sys.stdin.reconfigure(encoding='utf-8')
@@ -126,17 +125,33 @@ root = tk.Tk()
 root.title("Contact Messaging")
 
 # def section
-def restart_another_script(script_path, server):
-    # Close the running Flask server
-    server.close()
 
-    # Wait for a short duration
-    time.sleep(1)
+def run_script_in_background(script_path):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_path = os.path.join(script_dir, script_path)
 
-    # Restart the script
-    python_executable = sys.executable
-     # Restart the script
-    subprocess.Popen([sys.executable, os.path.join(os.getcwd(), script_path)])
+    if sys.platform == 'win32': # For Windows
+        CREATE_NEW_CONSOLE = 0x10
+        DETACHED_PROCESS = 0x08
+        subprocess.Popen(['python', script_path], creationflags=DETACHED_PROCESS | CREATE_NEW_CONSOLE)
+
+    elif sys.platform == 'darwin' or sys.platform.startswith('linux'): # For macOS and Linux
+        with open(os.devnull, 'w') as devnull:
+            subprocess.Popen(['python', script_path], stdout=devnull, stderr=devnull, stdin=subprocess.PIPE)
+
+    else:
+        print("Unsupported operating system. Please run the script manually.")
+def terminate_process_on_port(port):
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            for conn in proc.connections():
+                if conn.laddr.port == port:
+                    print(f"Terminating process {proc.info['name']} (PID: {proc.info['pid']}) on port {port}")
+                    proc.terminate()
+                    break
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
 
 def add_selected_contact():
     selected_index = listbox_contacts.curselection()[0]
@@ -177,27 +192,20 @@ def send_sms_and_restart_server():
     query = "INSERT INTO messages (phone_number, message, user) VALUES (%s, %s, %s)"
     cursor.execute(query, (phone_number, message, user))
     mydb.commit()
-
-    if response.status_code == 200:
-        messagebox.showinfo("SMS Ready", f"Message is ready to be sent to {phone_number}")
-        other_script_path = "serverfile/api_server.py"
-        restart_another_script(other_script_path, server_instance)
-
-
+    if __name__ == '__main__':
+        terminate_process_on_port(8000)
+    # Wait for a while (e.g., 5 seconds)
+    time.sleep(5)
+    # Restart the Flask server
+    run_script_in_background('serverfile/api_server.py')
 
 def update_button_send_state(*_):
     phone_number = entry_phone_number.get()
     message = entry_message.get()
-    
-
     if phone_number and message:
         button_send.config(state=tk.NORMAL)
-        start_server()
     else:
         button_send.config(state=tk.DISABLED)
-
-
-
 
 
 # tk img_section
@@ -206,11 +214,11 @@ def update_button_send_state(*_):
 # Load frequently used phrases from CSV
 frequently_used_phrases = load_phrases_from_csv('frequently_used_phrases.csv')
 message_var = tk.StringVar()
-
+run_script_in_background('serverfile/api_server.py')
 
 intro_listbox = "원하는 사람을 누르고 선택을 눌러주세요"
 intro_label = tk.Label(root, text=intro_listbox)
-intro_label.pack(pady=10)
+intro_label.pack(pady=5)
 
 listbox_contacts = tk.Listbox(root,width=30, height=10)
 for index, row in contacts_df.iterrows():
@@ -223,56 +231,56 @@ button_add.pack(pady=3)
 
 intro_listbox2 = "원하는 사람 입력하고 찾기를 눌러주세요"
 intro_label2 = tk.Label(root, text=intro_listbox, justify='center')
-intro_label2.pack(pady=10)
+intro_label2.pack(pady=5)
 
 # Create an entry box for the display_name input
 entry_display_name = tk.Entry(root, width=30)
-entry_display_name.pack(pady=10)
+entry_display_name.pack(pady=5)
 
 # Create a button to proceed with the entered contact name or phone number
 button_proceed = tk.Button(root, text="찾기", command=process_contact)
-button_proceed.pack(pady=10)
+button_proceed.pack(pady=5)
 
 # Create an entry box for the phone number input (optional)
 phone_number_var = tk.StringVar()
 phone_number_var.trace_add("write", update_button_send_state)
 entry_phone_number = tk.Entry(root, width=30, textvariable=phone_number_var)
-entry_phone_number.pack(pady=10)
+entry_phone_number.pack(pady=5)
 
 intro_listbox3 = "번호"
 intro_label3 = tk.Label(root, text=intro_listbox)
-intro_label3.pack(pady=10)
+intro_label3.pack(pady=5)
 
 
 # Create a listbox for frequently used phrases
 listbox_phrases = tk.Listbox(root, width=30)
 for index, phrase in enumerate(frequently_used_phrases):
     listbox_phrases.insert(index, phrase)
-listbox_phrases.pack(pady=10)
+listbox_phrases.pack(pady=5)
 
 freq_message = tk.Entry(root, width=30)
-freq_message.pack(pady=10)
+freq_message.pack(pady=5)
 
 # Create a button to add a new phrase
 button_add_phrase = tk.Button(root, text="Add new phrase", command=lambda: add_new_phrase(freq_message, listbox_phrases, frequently_used_phrases, 'frequently_used_phrases.csv'))
-button_add_phrase.pack(pady=10)
+button_add_phrase.pack(pady=5)
 
 # Create a button to remove the selected phrase
 button_remove_phrase = tk.Button(root, text="Remove selected phrase", command=lambda: remove_selected_phrase(listbox_phrases, frequently_used_phrases, 'frequently_used_phrases.csv'))
-button_remove_phrase.pack(pady=10)
+button_remove_phrase.pack(pady=5)
 
 # Create a button to insert the selected phrase
 button_insert = tk.Button(root, text="insert", command=lambda: insert_selected_phrase(message_var, listbox_phrases))
-button_insert.pack(pady=10)
+button_insert.pack(pady=5)
 
 # Create an entry box for the message
 message_var.trace_add("write", update_button_send_state)
 entry_message = tk.Entry(root, width=30, textvariable=message_var)
-entry_message.pack(pady=10)
+entry_message.pack(pady=5)
 
 # Create a button to send the SMS
 button_send = tk.Button(root, text="Send SMS", command=send_sms_and_restart_server, width=20, height=2, state=tk.DISABLED)
-button_send.pack(pady=10)
+button_send.pack(pady=5)
 
 # Start the Tkinter main loop
 root.mainloop()

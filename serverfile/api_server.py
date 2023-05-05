@@ -1,11 +1,19 @@
 from flask import Flask, request, jsonify
 import mysql.connector
 import json
+import time
 import os
 
 app = Flask(__name__)
 
-with open('config.json') as f:
+# Get the current script directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Set the path to the config.json file relative to the script directory
+config_file_path = os.path.join(script_dir, '..', 'config.json')
+
+# Load the configuration from the config.json file
+with open(config_file_path) as f:
     config = json.load(f)
 
 # Check if 'recent_app_user' exists in the config file, otherwise prompt for user input
@@ -33,6 +41,24 @@ mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
                     message TEXT,
                     user_id VARCHAR(255)
                 )""")
+
+@app.route('/')
+def hello():
+    return "Hello, World!"
+
+def check_stop_file():
+    # Set the path to the stop_server.txt file relative to the script directory
+    stop_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stop_server.txt')
+
+    return os.path.exists(stop_file_path)
+
+def remove_stop_file():
+    stop_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stop_server.txt')
+    
+    if os.path.exists(stop_file_path):
+        os.remove(stop_file_path)
+
+
 
 @app.route('/send_sms', methods=['POST'])
 def send_sms():
@@ -63,13 +89,15 @@ def get_messages():
 
     return jsonify({"status": "success", "messages": messages})
 
-def start_server():
-    server_instance = app.run(debug=True, host='0.0.0.0', port=8000)
-    return server_instance
+def create_server_instance():
+    return app
 
 
 if __name__ == '__main__':
     while True:
-        if os.environ.get("RESTART_FLASK_SERVER") == "1":
-            os.environ["RESTART_FLASK_SERVER"] = "0"
-        app.run(debug=True, host='0.0.0.0', port=8000)
+        if check_stop_file():
+            remove_stop_file()
+            break
+        else:
+            app.run(host='0.0.0.0',port=8000)
+            time.sleep(1)

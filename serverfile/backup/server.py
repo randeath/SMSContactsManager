@@ -1,8 +1,20 @@
 from flask import Flask, request, jsonify
 import mysql.connector
 import json
+import os
+
+# Get the current script directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Set the path to the config.json file relative to the script directory
+config_file_path = os.path.join(script_dir, '..', 'config.json')
+
+# Load the configuration from the config.json file
+with open(config_file_path) as f:
+    config = json.load(f)
 
 app = Flask(__name__)
+
 
 with open('config.json') as f:
     config = json.load(f)
@@ -24,7 +36,7 @@ mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
                     user_id VARCHAR(255)
                 )""")
 
-@app.route('/send_sms', methods=['POST'])
+
 @app.route('/send_sms', methods=['POST'])
 def send_sms():
     phone_number = request.json['phone_number']
