@@ -8,7 +8,7 @@ import csv
 import sys
 import json
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 import mysql.connector
 import os
 import subprocess 
@@ -123,8 +123,6 @@ contacts_df = pd.read_csv('contacts.csv')
 
 
 # def section
-
-
 
 def run_script_in_background(script_path):
     script_dir = os.path.dirname(os.path.abspath(__file__))

@@ -44,7 +44,7 @@ mycursor.execute("""CREATE TABLE IF NOT EXISTS messages (
 
 @app.route('/')
 def hello():
-    return "Hello, World!"
+    return "SMS System is working"
 
 def check_stop_file():
     # Set the path to the stop_server.txt file relative to the script directory
