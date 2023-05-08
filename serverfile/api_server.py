@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort
 import mysql.connector
 import json
 import time
@@ -70,6 +70,23 @@ def send_sms():
     mydb.commit()
 
     return jsonify({"status": "success", "message": f"Message is ready to be sent to {phone_number}"})
+
+@app.route('/delete_message/<int:message_id>', methods=['DELETE'])
+def delete_message(message_id):
+    # Check if the message with the given ID exists
+    mycursor.execute("SELECT COUNT(*) FROM messages WHERE id = %s", (message_id,))
+    count = mycursor.fetchone()[0]
+
+    if count == 0:
+        # Message with the given ID does not exist, return a 404 error
+        abort(404)
+    else:
+        # Delete the message with the given ID
+        mycursor.execute("DELETE FROM messages WHERE id = %s", (message_id,))
+        mydb.commit()
+
+    return jsonify({"status": "success", "message": f"Message with ID {message_id} has been deleted"})
+
 
 
 @app.route('/get_messages', methods=['GET'])
