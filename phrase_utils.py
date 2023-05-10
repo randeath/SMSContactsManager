@@ -6,12 +6,11 @@ def load_phrases_from_csv(file_path):
         reader = csv.reader(csvfile)
         return [row[0] for row in reader]
 
-def insert_selected_phrase(message_var, listbox_phrases):
+def insert_selected_phrase(text_widget, listbox_phrases):
     selected_index = listbox_phrases.curselection()
     if selected_index:
-        selected_phrase = listbox_phrases.get(selected_index)
-        current_message = message_var.get()
-        message_var.set(selected_phrase + current_message)
+        selected_phrase = listbox_phrases.get(selected_index[0])
+        text_widget.insert(tk.END, selected_phrase + ' ')
 
 
 def remove_selected_phrase(listbox_phrases, frequently_used_phrases, file_path):
