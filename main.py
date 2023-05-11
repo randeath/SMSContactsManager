@@ -111,6 +111,9 @@ for line in lines:
         number = number.split('=', 1)[-1].strip()
         number = number.replace('-', '')
         number = number.replace(' ', '')
+        if number.startswith('1'):
+            number = '0' + number
+
         rows.append({'display_name': name, 'number': number})
 
 
@@ -121,7 +124,7 @@ with open('contacts.csv', 'w', newline='') as f:
     writer.writerows(rows)
 
 # Read the CSV file and display the contacts
-contacts_df = pd.read_csv('contacts.csv')
+contacts_df = pd.read_csv('contacts.csv', dtype={'number': str})
 
 
 
@@ -236,7 +239,9 @@ intro_label.pack(pady=5)
 
 listbox_contacts = tk.Listbox(left_frame,width=30, height=10)
 for index, row in contacts_df.iterrows():
+    print(row['number'])  # Debug: print the phone number
     listbox_contacts.insert(index, f"{row['display_name']} ({row['number']})")
+
 listbox_contacts.pack(pady=1)
 
 # Create a button to add the selected contact's phone number to the entry box
